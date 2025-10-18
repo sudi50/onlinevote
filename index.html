@@ -1,454 +1,226 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>E-Voting OSIS & MPK — SMAN</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Voting OSIS & MPK Sekolah</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="icon" type="image/png" href="assets/favicon.png" />
+  <style>
+    body { background: #f8fafc; }
+    .card { background: white; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .btn { padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 600; }
+  </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-  <div class="max-w-4xl mx-auto p-6">
-    <header class="text-center mb-8">
-      <h1 class="text-3xl font-bold">E-Voting OSIS & MPK</h1>
-      <p class="text-gray-600 mt-2">Sistem voting online — sinkron ke Google Sheets</p>
-    </header>
+<body class="flex items-center justify-center min-h-screen">
 
-    <!-- Landing: choose mode -->
-    <div id="landing" class="text-center space-y-4">
-      <p class="text-lg">Masuk sebagai:</p>
-      <div class="flex justify-center gap-4">
-        <button onclick="enterAdmin()" class="px-6 py-3 bg-indigo-600 text-white rounded-lg">👩‍💼 Masuk Admin</button>
-        <button onclick="enterVoter()" class="px-6 py-3 bg-green-600 text-white rounded-lg">🗳️ Masuk Pemilih</button>
-        <button onclick="enterResults()" class="px-6 py-3 bg-gray-300 text-gray-800 rounded-lg">📊 Lihat Hasil</button>
-      </div>
-      <p class="text-xs text-gray-400 mt-4">(Admin: buat kandidat & pemilih → Simpan Setup. Pemilih: masukkan kode voting)</p>
+  <div id="main" class="w-full max-w-2xl text-center">
+    <h1 class="text-2xl font-bold mb-6">E-Voting OSIS & MPK Sekolah</h1>
+
+    <!-- Halaman awal -->
+    <div id="menu-awal" class="card">
+      <p class="mb-4 text-gray-700">Pilih mode untuk melanjutkan:</p>
+      <button onclick="bukaAdmin()" class="btn bg-blue-600 text-white hover:bg-blue-700 w-full mb-2">Masuk sebagai Admin</button>
+      <button onclick="bukaPemilih()" class="btn bg-green-600 text-white hover:bg-green-700 w-full">Masuk sebagai Pemilih</button>
     </div>
 
-    <!-- Admin Panel -->
-    <div id="adminPanel" class="hidden">
-      <div class="bg-white rounded shadow p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-semibold">Panel Admin — Setup Pemilihan</h2>
-          <div class="flex gap-2">
-            <button onclick="backToLanding()" class="px-3 py-1 text-sm border rounded">Kembali</button>
-            <button onclick="clearLocal()" class="px-3 py-1 text-sm border rounded text-red-600">Clear local</button>
-          </div>
-        </div>
+    <!-- Panel Admin -->
+    <div id="panel-admin" class="hidden card text-left">
+      <h2 class="text-xl font-semibold mb-4">Panel Admin — Setup</h2>
 
-        <div class="grid md:grid-cols-2 gap-6">
-          <div>
-            <h3 class="font-medium mb-2">Kandidat OSIS</h3>
-            <div id="osisList" class="space-y-2 mb-2"></div>
-            <div class="flex gap-2">
-              <button onclick="promptAddCandidate('osis')" class="px-3 py-2 bg-blue-600 text-white rounded">Tambah OSIS</button>
-              <button onclick="promptEditAllCandidates()" class="px-3 py-2 bg-yellow-500 text-white rounded">Edit Semua</button>
-            </div>
-          </div>
-          <div>
-            <h3 class="font-medium mb-2">Kandidat MPK</h3>
-            <div id="mpkList" class="space-y-2 mb-2"></div>
-            <div class="flex gap-2">
-              <button onclick="promptAddCandidate('mpk')" class="px-3 py-2 bg-green-600 text-white rounded">Tambah MPK</button>
-            </div>
-          </div>
-        </div>
+      <h3 class="font-bold text-gray-700 mb-2">Kandidat OSIS</h3>
+      <div id="list-osis" class="space-y-2 mb-4"></div>
+      <button onclick="tambahOSIS()" class="btn bg-blue-500 text-white">Tambah OSIS</button>
 
-        <hr class="my-4">
+      <h3 class="font-bold text-gray-700 mt-4 mb-2">Kandidat MPK</h3>
+      <div id="list-mpk" class="space-y-2 mb-4"></div>
+      <button onclick="tambahMPK()" class="btn bg-green-500 text-white">Tambah MPK</button>
 
-        <div>
-          <h3 class="font-medium mb-2">Daftar Pemilih</h3>
-          <div id="voterList" class="space-y-2 max-h-48 overflow-auto mb-2"></div>
-          <div class="flex gap-2">
-            <button onclick="promptAddVoter()" class="px-3 py-2 bg-gray-700 text-white rounded">Tambah Pemilih</button>
-            <button onclick="generateCodes()" class="px-3 py-2 bg-indigo-500 text-white rounded">Generate Kode</button>
-            <button onclick="downloadVotersCSV()" class="px-3 py-2 bg-blue-500 text-white rounded">Download Kode</button>
-          </div>
-        </div>
+      <h3 class="font-bold text-gray-700 mt-4 mb-2">Daftar Pemilih</h3>
+      <div id="list-pemilih" class="space-y-2 mb-4"></div>
+      <button onclick="tambahPemilih()" class="btn bg-purple-500 text-white">Tambah Pemilih</button>
 
-        <div class="mt-4 text-right">
-          <button onclick="saveSetupData()" class="px-4 py-2 bg-indigo-600 text-white rounded">💾 Simpan Setup (Server & Lokal)</button>
-        </div>
+      <div class="flex flex-col mt-6 space-y-2">
+        <button onclick="simpanSetup()" class="btn bg-indigo-600 text-white">💾 Simpan Setup (Server & Lokal)</button>
+        <button onclick="importDataServer()" class="btn bg-teal-600 text-white">🔄 Import dari Server</button>
+        <button onclick="kembaliMenu()" class="btn bg-gray-300">Kembali</button>
       </div>
     </div>
 
-    <!-- Voter Panel -->
-    <div id="voterPanel" class="hidden">
-      <div class="bg-white rounded shadow p-6 max-w-md mx-auto">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-semibold">Masuk Pemilih</h2>
-          <button onclick="backToLanding()" class="px-3 py-1 text-sm border rounded">Kembali</button>
-        </div>
-
-        <div id="voterFormArea">
-          <label class="block text-sm mb-1">Masukkan Kode Voting</label>
-          <input id="voterCodeInput" class="w-full border p-2 rounded mb-3" placeholder="KODE-ABCD" />
-          <div class="flex gap-2">
-            <button onclick="startVoting()" class="px-4 py-2 bg-green-600 text-white rounded">Mulai Voting</button>
-            <button onclick="backToLanding()" class="px-4 py-2 bg-gray-200 rounded">Batal</button>
-          </div>
-          <div id="voterInfo" class="mt-3 text-sm text-gray-600"></div>
-        </div>
-
-        <div id="voteArea" class="hidden mt-4">
-          <div id="voteChoices" class="space-y-3"></div>
-          <div class="flex gap-2 mt-3">
-            <button onclick="confirmVote()" class="px-4 py-2 bg-blue-600 text-white rounded">Kirim Vote</button>
-            <button onclick="cancelVote()" class="px-4 py-2 bg-gray-200 rounded">Batal</button>
-          </div>
-        </div>
-      </div>
+    <!-- Panel Pemilih -->
+    <div id="panel-pemilih" class="hidden card text-left">
+      <h2 class="text-xl font-semibold mb-4">Masukkan Kode Voting</h2>
+      <input id="kode-voting" type="text" placeholder="Kode Voting" class="border p-2 w-full rounded mb-3">
+      <button onclick="loginPemilih()" class="btn bg-green-600 text-white w-full">Masuk</button>
+      <button onclick="kembaliMenu()" class="btn bg-gray-300 mt-2 w-full">Kembali</button>
     </div>
 
-    <!-- Results Panel -->
-    <div id="resultsPanel" class="hidden">
-      <div class="bg-white rounded shadow p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-semibold">Hasil Pemilihan</h2>
-          <div class="flex gap-2">
-            <button onclick="backToLanding()" class="px-3 py-1 text-sm border rounded">Kembali</button>
-            <button onclick="refreshFromServer()" class="px-3 py-1 text-sm border rounded">Refresh</button>
-          </div>
-        </div>
-        <div id="resultsContent" class="space-y-4 text-gray-700"></div>
+    <!-- Panel Voting -->
+    <div id="panel-voting" class="hidden card text-left">
+      <h2 class="text-xl font-semibold mb-4">Pilih Kandidat</h2>
+      <div>
+        <h3 class="font-bold mb-2">Kandidat OSIS</h3>
+        <div id="vote-osis" class="space-y-2 mb-4"></div>
+
+        <h3 class="font-bold mb-2">Kandidat MPK</h3>
+        <div id="vote-mpk" class="space-y-2 mb-4"></div>
       </div>
+      <button onclick="kirimVote()" class="btn bg-blue-600 text-white w-full">Kirim Suara</button>
     </div>
+
   </div>
 
   <script>
-    // ---------------- CONFIG ----------------
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwxcfxDVmAMxc5IctHi_0Oj1FyRUH_kaSuh2Lqfs9pcNrD-oUsEvPF8z351XzR2G-IO/exec";
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyAd5ShAKU-cWuA81pRp9PHbEEDijBGeog_F6vj4jUezcTvN-DfIumKWyg9StF3si1a/exec";
 
-    // ---------------- STATE ----------------
-    let candidates = { osis: [], mpk: [] };
-    let registeredVoters = [];
-    let allVotes = [];
-    let currentVoter = null; // object saat pemilih login
+  let data = { candidates: [], voters: [], votes: [] };
+  let currentVoter = null;
 
-    // ---------------- UTIL ----------------
-    function id() { return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+  // --- Fungsi utama ---
+  async function loadData() {
+    try {
+      const res = await fetch(`${SCRIPT_URL}?action=get_all`);
+      const json = await res.json();
+      if (json.status === "ok") data = json.data;
+      console.log("Data loaded:", data);
+    } catch (e) {
+      alert("⚠️ Gagal memuat data online. Menggunakan data lokal.");
+    }
+  }
 
-    // ---------------- UI helpers ----------------
-    function show(el) { document.getElementById(el).classList.remove('hidden'); }
-    function hide(el) { document.getElementById(el).classList.add('hidden'); }
-    function backToLanding() {
-      hide('adminPanel'); hide('voterPanel'); hide('resultsPanel');
-      show('landing');
-      // clear vote area
-      hide('voteArea'); show('voterFormArea');
-    }
-
-    // ---------------- LOAD from server (JSONP) ----------------
-    function handleRemoteData_global(result) {
-      if (!result || result.status !== 'ok') { console.warn('load server failed', result); return; }
-      const remote = result.data || {};
-      const candArr = remote.candidates || [];
-      candidates = { osis: [], mpk: [] };
-      candArr.forEach(c => {
-        if (c.type && String(c.type).toLowerCase() === 'mpk') candidates.mpk.push(c);
-        else candidates.osis.push(c);
-      });
-      registeredVoters = (remote.voters || []).map(v => ({
-        id: v.id,
-        name: v.name,
-        class: v.class,
-        nis: v.nis,
-        votingCode: v.votingCode,
-        hasVoted: (v.hasVoted === true || String(v.hasVoted).toLowerCase() === 'true')
-      }));
-      allVotes = remote.votes || [];
-      // render
-      displayCandidatesList();
-      displayVotersList();
-    }
-
-    function loadFromServer(callback) {
-      window.handleRemoteData = handleRemoteData_global;
-      const s = document.createElement('script');
-      s.src = SCRIPT_URL + '?action=get_all&callback=handleRemoteData';
-      s.onerror = () => { console.error('JSONP load error'); if (callback) callback && callback(false); };
-      s.onload = () => { if (callback) callback(true); };
-      document.body.appendChild(s);
-    }
-
-    // ---------------- PUSH to server ----------------
-    function pushCandidatesToServer() {
-      const flat = [];
-      candidates.osis.forEach(c => flat.push({ ...c, type: 'osis' }));
-      candidates.mpk.forEach(c => flat.push({ ...c, type: 'mpk' }));
-      const payload = { action: 'save_candidates', candidates: flat };
-      return fetch(SCRIPT_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
-        .then(r=>r.json()).then(j=>{ console.log('save_candidates', j); return j; });
-    }
-    function pushVotersToServer() {
-      const payload = { action: 'save_voters', voters: registeredVoters };
-      return fetch(SCRIPT_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
-        .then(r=>r.json()).then(j=>{ console.log('save_voters', j); return j; });
-    }
-    function sendVoteToServer(vote) {
-      const payload = {
-        action:'add_vote',
-        voter_id: vote.voter_id,
-        votingCode: vote.votingCode || '',
-        name: vote.name,
-        class: vote.class,
-        nis: vote.nis,
-        osis_candidate: vote.osis_candidate,
-        mpk_candidate: vote.mpk_candidate,
-        device_id: navigator.userAgent
-      };
-      return fetch(SCRIPT_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
-        .then(r=>r.json()).then(j=>{ console.log('add_vote', j); return j; }).catch(e => { console.error(e); });
-    }
-
-    // ---------------- DISPLAY lists ----------------
-    function displayCandidatesList() {
-      const os = document.getElementById('osisList'); os.innerHTML = '';
-      const mp = document.getElementById('mpkList'); mp.innerHTML = '';
-      candidates.osis.forEach((c, idx) => {
-        const el = document.createElement('div');
-        el.className = 'flex justify-between items-center border p-2 rounded';
-        el.innerHTML = `<div><strong>${escapeHTML(c.name||('OSIS-'+c.id))}</strong><div class="text-xs text-gray-600">Ketua: ${escapeHTML(c.ketua||'')} — Wakil: ${escapeHTML(c.wakil||'')}</div></div>
-                        <div class="flex gap-2"><button onclick="editCandidate('osis',${idx})" class="text-sm px-2 py-1 border rounded">Edit</button><button onclick="removeCandidate('osis',${idx})" class="text-sm px-2 py-1 text-red-600 border rounded">Hapus</button></div>`;
-        os.appendChild(el);
-      });
-      candidates.mpk.forEach((c, idx) => {
-        const el = document.createElement('div');
-        el.className = 'flex justify-between items-center border p-2 rounded';
-        el.innerHTML = `<div><strong>${escapeHTML(c.name||('MPK-'+c.id))}</strong><div class="text-xs text-gray-600">Ketua: ${escapeHTML(c.ketua||'')}</div></div>
-                        <div class="flex gap-2"><button onclick="editCandidate('mpk',${idx})" class="text-sm px-2 py-1 border rounded">Edit</button><button onclick="removeCandidate('mpk',${idx})" class="text-sm px-2 py-1 text-red-600 border rounded">Hapus</button></div>`;
-        mp.appendChild(el);
-      });
-    }
-
-    function displayVotersList() {
-      const v = document.getElementById('voterList'); v.innerHTML = '';
-      registeredVoters.forEach((pv, idx) => {
-        const el = document.createElement('div');
-        el.className = 'flex justify-between items-center border p-2 rounded';
-        el.innerHTML = `<div><strong>${escapeHTML(pv.name||'')}</strong><div class="text-xs text-gray-600">Kelas: ${escapeHTML(pv.class||'')} — NIS: ${escapeHTML(pv.nis||'')} — Kode: <span class="font-mono">${escapeHTML(String(pv.votingCode||''))}</span> ${pv.hasVoted?'<span class="text-green-600">✅</span>':''}</div></div>
-                        <div class="flex gap-2"><button onclick="editVoter(${idx})" class="text-sm px-2 py-1 border rounded">Edit</button><button onclick="removeVoter(${idx})" class="text-sm px-2 py-1 text-red-600 border rounded">Hapus</button></div>`;
-        v.appendChild(el);
-      });
-    }
-
-    // ---------------- Admin prompts / edits ----------------
-    function promptAddCandidate(type) {
-      const name = prompt("Nama kandidat (contoh: No. 1 — Ahmad & Siti):");
-      if (!name) return;
-      const ketua = prompt("Nama Ketua (ketua):", "");
-      const wakil = type==='osis' ? prompt("Nama Wakil (wakil):", "") : "";
-      const obj = { id: id(), type, name, ketua: ketua||'', wakil: wakil||'', visi:'', photo:'', color:'' };
-      if (type==='osis') candidates.osis.push(obj); else candidates.mpk.push(obj);
-      displayCandidatesList();
-    }
-
-    function promptEditAllCandidates() {
-      // simple editor: loop through all candidates and allow rename
-      candidates.osis.forEach((c, i)=> {
-        const nm = prompt(`Edit OSIS ${i+1} — nama:`, c.name||'');
-        if (nm !== null) c.name = nm;
-        const kt = prompt(`Edit OSIS ${i+1} — ketua:`, c.ketua||'');
-        if (kt !== null) c.ketua = kt;
-        const wk = prompt(`Edit OSIS ${i+1} — wakil:`, c.wakil||'');
-        if (wk !== null) c.wakil = wk;
-      });
-      displayCandidatesList();
-    }
-
-    function editCandidate(type, idx) {
-      const arr = type==='osis'? candidates.osis : candidates.mpk;
-      const c = arr[idx];
-      if (!c) return;
-      const nm = prompt("Nama kandidat:", c.name||''); if (nm!==null) c.name = nm;
-      const kt = prompt("Nama Ketua:", c.ketua||''); if (kt!==null) c.ketua = kt;
-      if (type==='osis') { const wk = prompt("Nama Wakil:", c.wakil||''); if (wk!==null) c.wakil = wk; }
-      displayCandidatesList();
-    }
-
-    function removeCandidate(type, idx) {
-      if (!confirm('Hapus kandidat ini?')) return;
-      if (type==='osis') candidates.osis.splice(idx,1); else candidates.mpk.splice(idx,1);
-      displayCandidatesList();
-    }
-
-    function promptAddVoter() {
-      const name = prompt('Nama Pemilih:'); if (!name) return;
-      const kelas = prompt('Kelas (contoh: XI IPA 1):',''); if (kelas===null) return;
-      const nis = prompt('NIS:',''); if (nis===null) return;
-      const kode = id().toUpperCase().slice(0,8);
-      const obj = { id: id(), name, class: kelas, nis, votingCode: kode, hasVoted: false };
-      registeredVoters.push(obj);
-      displayVotersList();
-    }
-    function editVoter(idx) {
-      const v = registeredVoters[idx];
-      if (!v) return;
-      const nm = prompt('Nama pemilih:', v.name||''); if (nm!==null) v.name = nm;
-      const kls = prompt('Kelas:', v.class||''); if (kls!==null) v.class = kls;
-      const nis = prompt('NIS:', v.nis||''); if (nis!==null) v.nis = nis;
-      displayVotersList();
-    }
-    function removeVoter(idx) { if (!confirm('Hapus pemilih ini?')) return; registeredVoters.splice(idx,1); displayVotersList(); }
-
-    // ---------------- Utility actions ----------------
-    function generateCodes() {
-      if (!registeredVoters.length) { alert('Belum ada pemilih'); return; }
-      registeredVoters.forEach(v => { if (!v.votingCode) v.votingCode = id().toUpperCase().slice(0,8); });
-      displayVotersList();
-      alert('Kode voting digenerate untuk semua pemilih.');
-    }
-    function downloadVotersCSV() {
-      if (!registeredVoters.length) { alert('Belum ada pemilih'); return; }
-      let csv = 'Nama,Kelas,NIS,Kode Voting\n';
-      registeredVoters.forEach(v => csv += `${v.name},${v.class},${v.nis},${v.votingCode || ''}\n`);
-      const blob = new Blob([csv], {type:'text/csv'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'daftar_kode_voting.csv'; a.click();
-      URL.revokeObjectURL(a.href);
-    }
-
-    function clearLocal() {
-      if (!confirm('Hapus data lokal (localStorage) pada browser ini?')) return;
-      localStorage.removeItem('candidates'); localStorage.removeItem('registered_voters'); localStorage.removeItem('evoting_data');
-      candidates = {osis:[], mpk:[]}; registeredVoters = []; allVotes = [];
-      displayCandidatesList(); displayVotersList(); alert('Local storage di-clear. Muat ulang dari server jika ingin.');
-    }
-
-    // ---------------- Save setup ----------------
-    function saveSetupData() {
-      if (!registeredVoters.length || (!candidates.osis.length && !candidates.mpk.length)) {
-        if (!confirm('Data kandidat atau pemilih kosong. Tetap simpan?')) return;
+  async function importDataServer() {
+    try {
+      const res = await fetch(`${SCRIPT_URL}?action=get_all`);
+      const json = await res.json();
+      if (json.status === "ok") {
+        data = json.data;
+        renderAdmin();
+        alert("✅ Data berhasil diimpor dari server!");
+      } else {
+        alert("❌ Gagal memuat data dari server.");
       }
-      localStorage.setItem('candidates', JSON.stringify(candidates));
-      localStorage.setItem('registered_voters', JSON.stringify(registeredVoters));
-      Promise.all([ pushVotersToServer(), pushCandidatesToServer() ])
-        .then(()=> {
-          alert('Setup tersimpan ke server. Pemilihan siap.');
-          document.getElementById('voterStatus').textContent = 'Setup selesai';
-          // after save, go to landing so voters can open from other devices
-          backToLanding();
-        })
-        .catch(err => {
-          console.warn(err);
-          alert('Gagal simpan ke server. Data tetap tersimpan lokal.');
-        });
+    } catch (e) {
+      alert("⚠️ Gagal koneksi ke server. Pastikan internet aktif.");
     }
+  }
 
-    // ---------------- VOTING workflow ----------------
-    function enterAdmin(){ hide('landing'); show('adminPanel'); loadFromServer(()=>{}); }
-    function enterVoter(){ hide('landing'); show('voterPanel'); loadFromServer(()=>{}); }
-    function enterResults(){ hide('landing'); show('resultsPanel'); loadFromServer(()=> renderResults()); }
-
-    function startVoting() {
-      const code = document.getElementById('voterCodeInput').value.trim();
-      if (!code) { alert('Masukkan kode voting'); return; }
-      const pv = registeredVoters.find(x => String(x.votingCode) === String(code));
-      if (!pv) { alert('Kode tidak ditemukan'); return; }
-      if (pv.hasVoted) { alert('Kode sudah digunakan.'); return; }
-      currentVoter = pv;
-      document.getElementById('voterInfo').innerHTML = `<strong>${escapeHTML(pv.name)}</strong> — ${escapeHTML(pv.class)} (NIS: ${escapeHTML(pv.nis)})`;
-      // render choices
-      const ch = document.getElementById('voteChoices'); ch.innerHTML = '';
-      const osSelect = document.createElement('select'); osSelect.id = 'selectOsis'; osSelect.className = 'w-full border p-2 rounded';
-      candidates.osis.forEach(c=> { const opt = document.createElement('option'); opt.value = c.id; opt.text = `${c.name} (${c.ketua} & ${c.wakil})`; osSelect.appendChild(opt); });
-      const mpSelect = document.createElement('select'); mpSelect.id = 'selectMpk'; mpSelect.className = 'w-full border p-2 rounded';
-      candidates.mpk.forEach(c=> { const opt = document.createElement('option'); opt.value = c.id; opt.text = `${c.name} (${c.ketua||''})`; mpSelect.appendChild(opt); });
-      ch.appendChild(document.createElement('label')).innerText = 'Pilih OSIS';
-      ch.appendChild(osSelect);
-      ch.appendChild(document.createElement('label')).innerText = 'Pilih MPK';
-      ch.appendChild(mpSelect);
-      hide('voterFormArea'); show('voteArea');
-    }
-
-    function cancelVote() { currentVoter = null; hide('voteArea'); show('voterFormArea'); document.getElementById('voterCodeInput').value = ''; document.getElementById('voterInfo').innerHTML=''; }
-
-    function confirmVote() {
-      if (!currentVoter) { alert('Tidak ada pemilih aktif'); return; }
-      const os = document.getElementById('selectOsis').value;
-      const mp = document.getElementById('selectMpk').value;
-      // mark voted locally and on server
-      const vIdx = registeredVoters.findIndex(v=> v.id === currentVoter.id);
-      if (vIdx !== -1) { registeredVoters[vIdx].hasVoted = true; localStorage.setItem('registered_voters', JSON.stringify(registeredVoters)); pushVotersToServer(); }
-      const voteObj = {
-        voter_id: currentVoter.id,
-        votingCode: currentVoter.votingCode,
-        name: currentVoter.name,
-        class: currentVoter.class,
-        nis: currentVoter.nis,
-        osis_candidate: os,
-        mpk_candidate: mp
-      };
-      allVotes.push(voteObj);
-      localStorage.setItem('evoting_data', JSON.stringify(allVotes));
-      sendVoteToServer(voteObj).then(()=> {
-        alert('Terima kasih. Vote berhasil dikirim.');
-        currentVoter = null;
-        hide('voteArea'); show('voterFormArea'); document.getElementById('voterCodeInput').value=''; document.getElementById('voterInfo').innerHTML='';
-      }).catch(()=> {
-        alert('Vote disimpan lokal — gagal kirim ke server.');
+  async function simpanSetup() {
+    try {
+      await fetch(SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "save_candidates", candidates: data.candidates })
       });
-    }
-
-    // ---------------- RESULTS ----------------
-    function renderResults() {
-      // compute counts by candidate id, then map id->name
-      loadFromServer(() => {
-        const counts = { osis: {}, mpk: {} };
-        (allVotes || []).forEach(v => {
-          counts.osis[v.osis_candidate] = (counts.osis[v.osis_candidate] || 0) + 1;
-          counts.mpk[v.mpk_candidate] = (counts.mpk[v.mpk_candidate] || 0) + 1;
-        });
-        const content = document.getElementById('resultsContent'); content.innerHTML = '';
-        const osList = document.createElement('div'); osList.innerHTML = '<h3 class="font-semibold">OSIS</h3>';
-        const ul1 = document.createElement('ul'); ul1.className = 'list-disc pl-5';
-        Object.keys(counts.osis).forEach(cid => {
-          const c = findCandidateById(cid);
-          const label = c ? c.name : cid;
-          const li = document.createElement('li'); li.textContent = `${label}: ${counts.osis[cid]}`;
-          ul1.appendChild(li);
-        });
-        osList.appendChild(ul1);
-        const mpList = document.createElement('div'); mpList.innerHTML = '<h3 class="font-semibold mt-3">MPK</h3>';
-        const ul2 = document.createElement('ul'); ul2.className = 'list-disc pl-5';
-        Object.keys(counts.mpk).forEach(cid => {
-          const c = findCandidateById(cid);
-          const label = c ? c.name : cid;
-          const li = document.createElement('li'); li.textContent = `${label}: ${counts.mpk[cid]}`;
-          ul2.appendChild(li);
-        });
-        mpList.appendChild(ul2);
-        content.appendChild(osList); content.appendChild(mpList);
+      await fetch(SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "save_voters", voters: data.voters })
       });
+      alert("✅ Berhasil simpan ke server dan lokal!");
+    } catch (err) {
+      alert("❌ Gagal simpan ke server. Data tetap tersimpan lokal.");
     }
+  }
 
-    function findCandidateById(cid) {
-      let found = candidates.osis.find(c => String(c.id) === String(cid));
-      if (found) return found;
-      return candidates.mpk.find(c => String(c.id) === String(cid));
-    }
+  // --- Navigasi antar panel ---
+  function bukaAdmin() {
+    hideAll();
+    document.getElementById("panel-admin").classList.remove("hidden");
+    renderAdmin();
+  }
 
-    // ---------------- Misc ----------------
-    function refreshFromServer() { loadFromServer(()=> renderResults()); }
+  function bukaPemilih() {
+    hideAll();
+    document.getElementById("panel-pemilih").classList.remove("hidden");
+  }
 
-    function escapeHTML(s) {
-      if (s === null || s === undefined) return '';
-      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
+  function kembaliMenu() {
+    hideAll();
+    document.getElementById("menu-awal").classList.remove("hidden");
+  }
 
-    // ---------------- Startup: try load from server, fallback to local ----------------
-    document.addEventListener('DOMContentLoaded', function() {
-      loadFromServer(success => {
-        if (!success) {
-          // fallback
-          candidates = JSON.parse(localStorage.getItem('candidates')) || {osis:[], mpk:[]};
-          registeredVoters = JSON.parse(localStorage.getItem('registered_voters')) || [];
-          allVotes = JSON.parse(localStorage.getItem('evoting_data')) || [];
-          displayCandidatesList(); displayVotersList();
-        } else {
-          displayCandidatesList(); displayVotersList();
-        }
+  function hideAll() {
+    ["menu-awal","panel-admin","panel-pemilih","panel-voting"]
+      .forEach(id => document.getElementById(id).classList.add("hidden"));
+  }
+
+  // --- Fungsi Admin ---
+  function tambahOSIS() {
+    const id = Date.now();
+    data.candidates.push({ id, type: "osis", name: "Kandidat OSIS " + id, ketua: "", wakil: "", visi: "", photo: "", color: "#007bff" });
+    renderAdmin();
+  }
+
+  function tambahMPK() {
+    const id = Date.now();
+    data.candidates.push({ id, type: "mpk", name: "Kandidat MPK " + id, ketua: "", wakil: "", visi: "", photo: "", color: "#28a745" });
+    renderAdmin();
+  }
+
+  function tambahPemilih() {
+    const id = Date.now();
+    const kode = "K" + Math.random().toString(36).substring(2,7).toUpperCase();
+    data.voters.push({ id, name: "Nama", class: "", nis: "", votingCode: kode, hasVoted: false });
+    renderAdmin();
+  }
+
+  function renderAdmin() {
+    const osis = data.candidates.filter(c => c.type === "osis");
+    const mpk = data.candidates.filter(c => c.type === "mpk");
+
+    document.getElementById("list-osis").innerHTML = osis.map(c => `<div class='p-2 border rounded'>${c.name}</div>`).join("");
+    document.getElementById("list-mpk").innerHTML = mpk.map(c => `<div class='p-2 border rounded'>${c.name}</div>`).join("");
+    document.getElementById("list-pemilih").innerHTML = data.voters.map(v => `<div class='p-2 border rounded'>${v.name} — ${v.votingCode}</div>`).join("");
+  }
+
+  // --- Fungsi Pemilih ---
+  function loginPemilih() {
+    const kode = document.getElementById("kode-voting").value.trim();
+    const voter = data.voters.find(v => v.votingCode === kode && !v.hasVoted);
+    if (!voter) return alert("Kode tidak valid atau sudah digunakan.");
+    currentVoter = voter;
+    renderVoting();
+  }
+
+  function renderVoting() {
+    hideAll();
+    document.getElementById("panel-voting").classList.remove("hidden");
+    const osis = data.candidates.filter(c => c.type === "osis");
+    const mpk = data.candidates.filter(c => c.type === "mpk");
+    document.getElementById("vote-osis").innerHTML = osis.map(c => `<label><input type='radio' name='osis' value='${c.name}'> ${c.name}</label>`).join("<br>");
+    document.getElementById("vote-mpk").innerHTML = mpk.map(c => `<label><input type='radio' name='mpk' value='${c.name}'> ${c.name}</label>`).join("<br>");
+  }
+
+  async function kirimVote() {
+    const osis = document.querySelector("input[name='osis']:checked");
+    const mpk = document.querySelector("input[name='mpk']:checked");
+    if (!osis || !mpk) return alert("Pilih kandidat OSIS dan MPK!");
+
+    const payload = {
+      action: "add_vote",
+      voter_id: currentVoter.id,
+      name: currentVoter.name,
+      class: currentVoter.class,
+      nis: currentVoter.nis,
+      osis_candidate: osis.value,
+      mpk_candidate: mpk.value,
+      device_id: navigator.userAgent
+    };
+
+    try {
+      await fetch(SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
       });
-    });
+      alert("✅ Suara berhasil dikirim!");
+      kembaliMenu();
+    } catch (err) {
+      alert("❌ Gagal kirim suara.");
+    }
+  }
+
+  // --- Load awal ---
+  loadData();
   </script>
 </body>
 </html>
-

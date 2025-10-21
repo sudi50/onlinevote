@@ -1,226 +1,1105 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>E-Voting OSIS & MPK Sekolah</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { background: #f8fafc; }
-    .card { background: white; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .btn { padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 600; }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>E-Voting OSIS & MPK - Lokal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { box-sizing: border-box; }
+        .candidate-card { transition: all 0.22s ease; }
+        .candidate-card:hover { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(0,0,0,0.08); }
+        .selected { border: 3px solid #2563eb; background: linear-gradient(135deg,#eff6ff,#dbeafe); }
+        .vote-animation { animation: voteSuccess 0.6s ease-in-out; }
+        @keyframes voteSuccess {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.04); }
+            100% { transform: scale(1); }
+        }
+        .progress-bar { min-width: 6px; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: white; margin: 5% auto; padding: 20px; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80%; overflow-y: auto; }
+        .toast { position: fixed; top: 20px; right: 20px; z-index: 1001; padding: 12px 24px; border-radius: 8px; color: white; font-weight: 500; transform: translateX(400px); transition: transform 0.3s ease; }
+        .toast.show { transform: translateX(0); }
+        .toast.success { background-color: #10b981; }
+        .toast.error { background-color: #ef4444; }
+        .toast.warning { background-color: #f59e0b; }
+    </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-full">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">🗳️ E-Voting Sekolah</h1>
+            <p class="text-lg text-gray-600">Pemilihan Ketua & Wakil Ketua OSIS serta Ketua MPK — Offline (LocalStorage)</p>
+            <div class="mt-4 bg-white rounded-lg p-4 shadow-md inline-block">
+                <p class="text-sm text-gray-500">Status: <span id="voterStatus" class="font-semibold text-green-600">Belum Setup</span></p>
+            </div>
+            <div class="mt-4 space-x-4">
+                <button onclick="showAdminPanel()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition duration-200">
+                    ⚙️ Panel Admin
+                </button>
+                <button onclick="showVoterPanel()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-200">
+                    🗳️ Mulai Voting
+                </button>
+                <button onclick="showResults()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200">
+                    📊 Lihat Hasil
+                </button>
+            </div>
+        </div>
 
-  <div id="main" class="w-full max-w-2xl text-center">
-    <h1 class="text-2xl font-bold mb-6">E-Voting OSIS & MPK Sekolah</h1>
+        <!-- Admin Panel -->
+        <div id="adminPanel" class="hidden max-w-6xl mx-auto mb-8">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-2xl font-semibold mb-6 text-center text-purple-800">Panel Admin - Setup Pemilihan</h2>
+                
+                <!-- Voter Management -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">📋 Kelola Data Pemilih</h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-medium mb-3">Tambah Pemilih Manual</h4>
+                            <form id="addVoterForm" class="space-y-3">
+                                <input type="text" id="newVoterName" placeholder="Nama Lengkap" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                                <input type="text" id="newVoterClass" placeholder="Kelas (contoh: XI IPA 1)" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                                <input type="text" id="newVoterNIS" placeholder="NIS" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                                <div class="text-xs text-gray-500 bg-blue-50 p-2 rounded">
+                                    💡 Kode unik 4 karakter akan dibuat otomatis untuk setiap pemilih
+                                </div>
+                                <button type="submit" class="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition duration-200">
+                                    Tambah Pemilih
+                                </button>
+                            </form>
+                            
+                            <div class="mt-6 pt-4 border-t">
+                                <h4 class="font-medium mb-3">Import Data Pemilih (CSV)</h4>
+                                <div class="space-y-3">
+                                    <input type="file" id="csvFile" accept=".csv" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                                    <button onclick="importCSV()" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition duration-200">
+                                        Import CSV
+                                    </button>
+                                    <p class="text-xs text-gray-500">Format CSV: Nama,Kelas,NIS (tanpa header)</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-medium mb-3">Daftar Pemilih Terdaftar</h4>
+                            <div id="votersList" class="bg-gray-50 rounded-lg p-4 max-h-80 overflow-y-auto">
+                                <p class="text-gray-500 text-center">Belum ada pemilih terdaftar</p>
+                            </div>
+                            <div class="mt-3 space-y-2">
+                                <button onclick="exportVoterList()" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition duration-200">
+                                    📊 Export Data Pemilih ke Excel
+                                </button>
+                                <div class="flex space-x-2">
+                                    <button onclick="clearAllVoters()" class="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition duration-200">
+                                        Hapus Semua
+                                    </button>
+                                    <button onclick="resetVotingStatus()" class="flex-1 bg-yellow-600 text-white py-2 px-4 rounded-lg hover:bg-yellow-700 transition duration-200">
+                                        Reset Status Voting
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-    <!-- Halaman awal -->
-    <div id="menu-awal" class="card">
-      <p class="mb-4 text-gray-700">Pilih mode untuk melanjutkan:</p>
-      <button onclick="bukaAdmin()" class="btn bg-blue-600 text-white hover:bg-blue-700 w-full mb-2">Masuk sebagai Admin</button>
-      <button onclick="bukaPemilih()" class="btn bg-green-600 text-white hover:bg-green-700 w-full">Masuk sebagai Pemilih</button>
+                <!-- Candidate Management -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">👥 Kelola Kandidat</h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-medium mb-3">Tambah Kandidat OSIS</h4>
+                            <form id="addOsisForm" class="space-y-3">
+                                <input type="text" id="osisKetua" placeholder="Nama Ketua" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                                <input type="text" id="osisWakil" placeholder="Nama Wakil Ketua" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                                <input type="text" id="osisKelas" placeholder="Kelas" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Foto Kandidat OSIS</label>
+                                    <input type="file" id="osisPhoto" accept="image/*" class="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-purple-500" />
+                                </div>
+                                <textarea id="osisVisi" placeholder="Visi & Misi" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+                                <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-200">
+                                    Tambah Kandidat OSIS
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-medium mb-3">Tambah Kandidat MPK</h4>
+                            <form id="addMpkForm" class="space-y-3">
+                                <input type="text" id="mpkKetua" placeholder="Nama Ketua MPK" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                                <input type="text" id="mpkKelas" placeholder="Kelas" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Foto Ketua MPK</label>
+                                    <input type="file" id="mpkKetuaPhoto" accept="image/*" class="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-purple-500" />
+                                </div>
+                                <textarea id="mpkVisi" placeholder="Visi & Misi" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+                                <button type="submit" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition duration-200">
+                                    Tambah Kandidat MPK
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Current Candidates Display -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">📋 Kandidat Terdaftar</h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-medium mb-3 text-blue-700">Kandidat OSIS</h4>
+                            <div id="osisListAdmin" class="space-y-3">
+                                <p class="text-gray-500 text-center py-4">Belum ada kandidat OSIS</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="font-medium mb-3 text-green-700">Kandidat MPK</h4>
+                            <div id="mpkListAdmin" class="space-y-3">
+                                <p class="text-gray-500 text-center py-4">Belum ada kandidat MPK</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-center">
+                        <button onclick="clearAllCandidates()" class="bg-red-600 text-white py-2 px-6 rounded-lg hover:bg-red-700 transition duration-200">
+                            Hapus Semua Kandidat
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Voter Panel -->
+        <div id="voterPanel" class="hidden max-w-4xl mx-auto">
+            <!-- Login Form -->
+            <div id="loginForm" class="bg-white rounded-xl shadow-lg p-8 mb-8">
+                <h2 class="text-2xl font-semibold mb-6 text-center text-green-800">🔐 Login Pemilih</h2>
+                <form id="voterLoginForm" class="max-w-md mx-auto space-y-4">
+                    <div>
+                        <label for="voterCode" class="block text-sm font-medium text-gray-700 mb-2">Kode Pemilih (4 Karakter)</label>
+                        <input type="text" id="voterCode" maxlength="4" placeholder="Contoh: A1B2" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-mono text-center text-lg uppercase" />
+                    </div>
+                    <div class="text-xs text-gray-500 bg-yellow-50 p-3 rounded">
+                        💡 Masukkan kode unik 4 karakter yang diberikan admin untuk mulai voting
+                    </div>
+                    <button type="submit" class="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition duration-200 font-medium">
+                        Masuk untuk Voting
+                    </button>
+                </form>
+            </div>
+
+            <!-- Voting Interface -->
+            <div id="votingInterface" class="hidden">
+                <div class="bg-white rounded-xl shadow-lg p-8 mb-8">
+                    <div class="text-center mb-8">
+                        <h2 class="text-2xl font-semibold text-green-800">Selamat datang, <span id="currentVoterName"></span>!</h2>
+                        <p class="text-gray-600 mt-2">Silakan pilih kandidat untuk setiap posisi</p>
+                    </div>
+
+                    <!-- OSIS Voting -->
+                    <div class="mb-12">
+                        <h3 class="text-xl font-semibold mb-6 text-center text-blue-700">🏛️ Pemilihan Ketua & Wakil Ketua OSIS</h3>
+                        <div id="osisVotingList" class="grid md:grid-cols-2 gap-6">
+                            <p class="text-gray-500 text-center col-span-full py-8">Belum ada kandidat OSIS tersedia</p>
+                        </div>
+                    </div>
+
+                    <!-- MPK Voting -->
+                    <div class="mb-8">
+                        <h3 class="text-xl font-semibold mb-6 text-center text-green-700">🏛️ Pemilihan Ketua MPK</h3>
+                        <div id="mpkVotingList" class="grid md:grid-cols-2 gap-6">
+                            <p class="text-gray-500 text-center col-span-full py-8">Belum ada kandidat MPK tersedia</p>
+                        </div>
+                    </div>
+
+                    <!-- Submit Vote -->
+                    <div class="text-center">
+                        <button id="submitVoteBtn" onclick="submitVote()" disabled class="bg-gray-400 text-white py-3 px-8 rounded-lg font-medium cursor-not-allowed">
+                            Pilih kandidat terlebih dahulu
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vote Success -->
+            <div id="voteSuccess" class="hidden bg-white rounded-xl shadow-lg p-8 text-center">
+                <div class="text-6xl mb-4">✅</div>
+                <h2 class="text-2xl font-semibold text-green-800 mb-4">Suara Berhasil Disimpan!</h2>
+                <p class="text-gray-600 mb-6">Terima kasih telah berpartisipasi dalam pemilihan ini.</p>
+                <button onclick="logout()" class="bg-blue-600 text-white py-2 px-6 rounded-lg hover:bg-blue-700 transition duration-200">
+                    Kembali ke Beranda
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div id="resultsPanel" class="hidden max-w-6xl mx-auto">
+            <div class="bg-white rounded-xl shadow-lg p-8">
+                <h2 class="text-2xl font-semibold mb-8 text-center text-blue-800">📊 Hasil Pemilihan</h2>
+                
+                <div class="grid md:grid-cols-2 gap-8">
+                    <!-- OSIS Results -->
+                    <div>
+                        <h3 class="text-xl font-semibold mb-6 text-blue-700">Hasil Pemilihan OSIS</h3>
+                        <div id="osisResults">
+                            <p class="text-gray-500 text-center py-8">Belum ada hasil voting</p>
+                        </div>
+                    </div>
+
+                    <!-- MPK Results -->
+                    <div>
+                        <h3 class="text-xl font-semibold mb-6 text-green-700">Hasil Pemilihan MPK</h3>
+                        <div id="mpkResults">
+                            <p class="text-gray-500 text-center py-8">Belum ada hasil voting</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 text-center">
+                    <div class="bg-gray-50 rounded-lg p-4 inline-block mb-4">
+                        <p class="text-sm text-gray-600">
+                            Total Pemilih: <span id="totalVoters" class="font-semibold">0</span> | 
+                            Sudah Voting: <span id="votedCount" class="font-semibold">0</span> | 
+                            Belum Voting: <span id="notVotedCount" class="font-semibold">0</span>
+                        </p>
+                    </div>
+                    <div class="space-x-4">
+                        <button onclick="exportToExcel()" class="bg-green-600 text-white py-2 px-6 rounded-lg hover:bg-green-700 transition duration-200">
+                            📊 Export ke Excel
+                        </button>
+                        <button onclick="exportDetailedResults()" class="bg-blue-600 text-white py-2 px-6 rounded-lg hover:bg-blue-700 transition duration-200">
+                            📋 Export Detail Lengkap
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Panel Admin -->
-    <div id="panel-admin" class="hidden card text-left">
-      <h2 class="text-xl font-semibold mb-4">Panel Admin — Setup</h2>
-
-      <h3 class="font-bold text-gray-700 mb-2">Kandidat OSIS</h3>
-      <div id="list-osis" class="space-y-2 mb-4"></div>
-      <button onclick="tambahOSIS()" class="btn bg-blue-500 text-white">Tambah OSIS</button>
-
-      <h3 class="font-bold text-gray-700 mt-4 mb-2">Kandidat MPK</h3>
-      <div id="list-mpk" class="space-y-2 mb-4"></div>
-      <button onclick="tambahMPK()" class="btn bg-green-500 text-white">Tambah MPK</button>
-
-      <h3 class="font-bold text-gray-700 mt-4 mb-2">Daftar Pemilih</h3>
-      <div id="list-pemilih" class="space-y-2 mb-4"></div>
-      <button onclick="tambahPemilih()" class="btn bg-purple-500 text-white">Tambah Pemilih</button>
-
-      <div class="flex flex-col mt-6 space-y-2">
-        <button onclick="simpanSetup()" class="btn bg-indigo-600 text-white">💾 Simpan Setup (Server & Lokal)</button>
-        <button onclick="importDataServer()" class="btn bg-teal-600 text-white">🔄 Import dari Server</button>
-        <button onclick="kembaliMenu()" class="btn bg-gray-300">Kembali</button>
-      </div>
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <h3 class="text-lg font-semibold mb-4">Konfirmasi Pilihan</h3>
+            <div id="confirmContent"></div>
+            <div class="flex space-x-4 mt-6">
+                <button onclick="closeModal()" class="flex-1 bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition duration-200">
+                    Batal
+                </button>
+                <button id="confirmVoteBtn" class="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition duration-200">
+                    Ya, Submit Suara
+                </button>
+            </div>
+        </div>
     </div>
 
-    <!-- Panel Pemilih -->
-    <div id="panel-pemilih" class="hidden card text-left">
-      <h2 class="text-xl font-semibold mb-4">Masukkan Kode Voting</h2>
-      <input id="kode-voting" type="text" placeholder="Kode Voting" class="border p-2 w-full rounded mb-3">
-      <button onclick="loginPemilih()" class="btn bg-green-600 text-white w-full">Masuk</button>
-      <button onclick="kembaliMenu()" class="btn bg-gray-300 mt-2 w-full">Kembali</button>
-    </div>
+    <script>
+        // Data Storage
+        let voters = JSON.parse(localStorage.getItem('evoting_voters') || '[]');
+        let osiscandidates = JSON.parse(localStorage.getItem('evoting_osis') || '[]');
+        let mpkCandidates = JSON.parse(localStorage.getItem('evoting_mpk') || '[]');
+        let votes = JSON.parse(localStorage.getItem('evoting_votes') || '[]');
+        let currentVoter = null;
+        let selectedOsis = null;
+        let selectedMpk = null;
 
-    <!-- Panel Voting -->
-    <div id="panel-voting" class="hidden card text-left">
-      <h2 class="text-xl font-semibold mb-4">Pilih Kandidat</h2>
-      <div>
-        <h3 class="font-bold mb-2">Kandidat OSIS</h3>
-        <div id="vote-osis" class="space-y-2 mb-4"></div>
+        // Generate unique 4-character code
+        function generateUniqueCode() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let code;
+            do {
+                code = '';
+                for (let i = 0; i < 4; i++) {
+                    code += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+            } while (voters.find(v => v.code === code));
+            return code;
+        }
 
-        <h3 class="font-bold mb-2">Kandidat MPK</h3>
-        <div id="vote-mpk" class="space-y-2 mb-4"></div>
-      </div>
-      <button onclick="kirimVote()" class="btn bg-blue-600 text-white w-full">Kirim Suara</button>
-    </div>
+        // Convert file to base64
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
 
-  </div>
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updateVoterStatus();
+            
+            // Form handlers
+            document.getElementById('addVoterForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                addVoter();
+            });
+            
+            document.getElementById('addOsisForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                addOsisCandidate();
+            });
+            
+            document.getElementById('addMpkForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                addMpkCandidate();
+            });
+            
+            document.getElementById('voterLoginForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                loginVoter();
+            });
+        });
 
-  <script>
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyAd5ShAKU-cWuA81pRp9PHbEEDijBGeog_F6vj4jUezcTvN-DfIumKWyg9StF3si1a/exec";
+        // Show/Hide Panels
+        function showAdminPanel() {
+            hideAllPanels();
+            document.getElementById('adminPanel').classList.remove('hidden');
+            updateVotersList();
+            updateCandidatesList();
+        }
 
-  let data = { candidates: [], voters: [], votes: [] };
-  let currentVoter = null;
+        function showVoterPanel() {
+            hideAllPanels();
+            document.getElementById('voterPanel').classList.remove('hidden');
+            document.getElementById('loginForm').classList.remove('hidden');
+            document.getElementById('votingInterface').classList.add('hidden');
+            document.getElementById('voteSuccess').classList.add('hidden');
+        }
 
-  // --- Fungsi utama ---
-  async function loadData() {
-    try {
-      const res = await fetch(`${SCRIPT_URL}?action=get_all`);
-      const json = await res.json();
-      if (json.status === "ok") data = json.data;
-      console.log("Data loaded:", data);
-    } catch (e) {
-      alert("⚠️ Gagal memuat data online. Menggunakan data lokal.");
-    }
-  }
+        function showResults() {
+            hideAllPanels();
+            document.getElementById('resultsPanel').classList.remove('hidden');
+            updateResults();
+        }
 
-  async function importDataServer() {
-    try {
-      const res = await fetch(`${SCRIPT_URL}?action=get_all`);
-      const json = await res.json();
-      if (json.status === "ok") {
-        data = json.data;
-        renderAdmin();
-        alert("✅ Data berhasil diimpor dari server!");
-      } else {
-        alert("❌ Gagal memuat data dari server.");
-      }
-    } catch (e) {
-      alert("⚠️ Gagal koneksi ke server. Pastikan internet aktif.");
-    }
-  }
+        function hideAllPanels() {
+            document.getElementById('adminPanel').classList.add('hidden');
+            document.getElementById('voterPanel').classList.add('hidden');
+            document.getElementById('resultsPanel').classList.add('hidden');
+        }
 
-  async function simpanSetup() {
-    try {
-      await fetch(SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "save_candidates", candidates: data.candidates })
-      });
-      await fetch(SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "save_voters", voters: data.voters })
-      });
-      alert("✅ Berhasil simpan ke server dan lokal!");
-    } catch (err) {
-      alert("❌ Gagal simpan ke server. Data tetap tersimpan lokal.");
-    }
-  }
+        // Voter Management
+        function addVoter() {
+            const name = document.getElementById('newVoterName').value.trim();
+            const kelas = document.getElementById('newVoterClass').value.trim();
+            const nis = document.getElementById('newVoterNIS').value.trim();
 
-  // --- Navigasi antar panel ---
-  function bukaAdmin() {
-    hideAll();
-    document.getElementById("panel-admin").classList.remove("hidden");
-    renderAdmin();
-  }
+            if (!name || !kelas || !nis) {
+                showToast('Semua field harus diisi!', 'error');
+                return;
+            }
 
-  function bukaPemilih() {
-    hideAll();
-    document.getElementById("panel-pemilih").classList.remove("hidden");
-  }
+            // Check if NIS already exists
+            if (voters.find(v => v.nis === nis)) {
+                showToast('NIS sudah terdaftar!', 'error');
+                return;
+            }
 
-  function kembaliMenu() {
-    hideAll();
-    document.getElementById("menu-awal").classList.remove("hidden");
-  }
+            const voter = {
+                id: Date.now(),
+                name: name,
+                class: kelas,
+                nis: nis,
+                code: generateUniqueCode(),
+                hasVoted: false
+            };
 
-  function hideAll() {
-    ["menu-awal","panel-admin","panel-pemilih","panel-voting"]
-      .forEach(id => document.getElementById(id).classList.add("hidden"));
-  }
+            voters.push(voter);
+            localStorage.setItem('evoting_voters', JSON.stringify(voters));
+            
+            document.getElementById('addVoterForm').reset();
+            updateVotersList();
+            updateVoterStatus();
+            showToast('Pemilih berhasil ditambahkan!', 'success');
+        }
 
-  // --- Fungsi Admin ---
-  function tambahOSIS() {
-    const id = Date.now();
-    data.candidates.push({ id, type: "osis", name: "Kandidat OSIS " + id, ketua: "", wakil: "", visi: "", photo: "", color: "#007bff" });
-    renderAdmin();
-  }
+        function importCSV() {
+            const fileInput = document.getElementById('csvFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showToast('Pilih file CSV terlebih dahulu!', 'error');
+                return;
+            }
 
-  function tambahMPK() {
-    const id = Date.now();
-    data.candidates.push({ id, type: "mpk", name: "Kandidat MPK " + id, ketua: "", wakil: "", visi: "", photo: "", color: "#28a745" });
-    renderAdmin();
-  }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const csv = e.target.result;
+                const lines = csv.split('\n').filter(line => line.trim());
+                let imported = 0;
+                let skipped = 0;
 
-  function tambahPemilih() {
-    const id = Date.now();
-    const kode = "K" + Math.random().toString(36).substring(2,7).toUpperCase();
-    data.voters.push({ id, name: "Nama", class: "", nis: "", votingCode: kode, hasVoted: false });
-    renderAdmin();
-  }
+                lines.forEach(line => {
+                    const [name, kelas, nis] = line.split(',').map(s => s.trim());
+                    
+                    if (name && kelas && nis) {
+                        if (!voters.find(v => v.nis === nis)) {
+                            voters.push({
+                                id: Date.now() + Math.random(),
+                                name: name,
+                                class: kelas,
+                                nis: nis,
+                                code: generateUniqueCode(),
+                                hasVoted: false
+                            });
+                            imported++;
+                        } else {
+                            skipped++;
+                        }
+                    }
+                });
 
-  function renderAdmin() {
-    const osis = data.candidates.filter(c => c.type === "osis");
-    const mpk = data.candidates.filter(c => c.type === "mpk");
+                localStorage.setItem('evoting_voters', JSON.stringify(voters));
+                updateVotersList();
+                updateVoterStatus();
+                showToast(`Import selesai! ${imported} ditambahkan, ${skipped} dilewati.`, 'success');
+                fileInput.value = '';
+            };
+            reader.readAsText(file);
+        }
 
-    document.getElementById("list-osis").innerHTML = osis.map(c => `<div class='p-2 border rounded'>${c.name}</div>`).join("");
-    document.getElementById("list-mpk").innerHTML = mpk.map(c => `<div class='p-2 border rounded'>${c.name}</div>`).join("");
-    document.getElementById("list-pemilih").innerHTML = data.voters.map(v => `<div class='p-2 border rounded'>${v.name} — ${v.votingCode}</div>`).join("");
-  }
+        function updateVotersList() {
+            const container = document.getElementById('votersList');
+            
+            if (voters.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center">Belum ada pemilih terdaftar</p>';
+                return;
+            }
 
-  // --- Fungsi Pemilih ---
-  function loginPemilih() {
-    const kode = document.getElementById("kode-voting").value.trim();
-    const voter = data.voters.find(v => v.votingCode === kode && !v.hasVoted);
-    if (!voter) return alert("Kode tidak valid atau sudah digunakan.");
-    currentVoter = voter;
-    renderVoting();
-  }
+            container.innerHTML = voters.map(voter => `
+                <div class="flex justify-between items-center py-2 px-3 bg-white rounded-lg mb-2">
+                    <div>
+                        <div class="font-medium">${voter.name}</div>
+                        <div class="text-sm text-gray-500">${voter.class} - ${voter.nis}</div>
+                        <div class="text-xs text-blue-600 font-mono bg-blue-50 px-2 py-1 rounded mt-1 inline-block">
+                            Kode: ${voter.code || 'N/A'}
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs px-2 py-1 rounded-full ${voter.hasVoted ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
+                            ${voter.hasVoted ? 'Sudah Vote' : 'Belum Vote'}
+                        </span>
+                        <button onclick="removeVoter(${voter.id})" class="text-red-600 hover:text-red-800 text-sm">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
 
-  function renderVoting() {
-    hideAll();
-    document.getElementById("panel-voting").classList.remove("hidden");
-    const osis = data.candidates.filter(c => c.type === "osis");
-    const mpk = data.candidates.filter(c => c.type === "mpk");
-    document.getElementById("vote-osis").innerHTML = osis.map(c => `<label><input type='radio' name='osis' value='${c.name}'> ${c.name}</label>`).join("<br>");
-    document.getElementById("vote-mpk").innerHTML = mpk.map(c => `<label><input type='radio' name='mpk' value='${c.name}'> ${c.name}</label>`).join("<br>");
-  }
+        function removeVoter(id) {
+            voters = voters.filter(v => v.id !== id);
+            localStorage.setItem('evoting_voters', JSON.stringify(voters));
+            updateVotersList();
+            updateVoterStatus();
+            showToast('Pemilih berhasil dihapus!', 'success');
+        }
 
-  async function kirimVote() {
-    const osis = document.querySelector("input[name='osis']:checked");
-    const mpk = document.querySelector("input[name='mpk']:checked");
-    if (!osis || !mpk) return alert("Pilih kandidat OSIS dan MPK!");
+        function clearAllVoters() {
+            if (voters.length === 0) {
+                showToast('Tidak ada pemilih untuk dihapus!', 'warning');
+                return;
+            }
+            
+            voters = [];
+            localStorage.setItem('evoting_voters', JSON.stringify(voters));
+            updateVotersList();
+            updateVoterStatus();
+            showToast('Semua pemilih berhasil dihapus!', 'success');
+        }
 
-    const payload = {
-      action: "add_vote",
-      voter_id: currentVoter.id,
-      name: currentVoter.name,
-      class: currentVoter.class,
-      nis: currentVoter.nis,
-      osis_candidate: osis.value,
-      mpk_candidate: mpk.value,
-      device_id: navigator.userAgent
-    };
+        function resetVotingStatus() {
+            voters.forEach(voter => voter.hasVoted = false);
+            votes = [];
+            localStorage.setItem('evoting_voters', JSON.stringify(voters));
+            localStorage.setItem('evoting_votes', JSON.stringify(votes));
+            updateVotersList();
+            updateVoterStatus();
+            showToast('Status voting berhasil direset!', 'success');
+        }
 
-    try {
-      await fetch(SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      alert("✅ Suara berhasil dikirim!");
-      kembaliMenu();
-    } catch (err) {
-      alert("❌ Gagal kirim suara.");
-    }
-  }
+        // Candidate Management
+        async function addOsisCandidate() {
+            const ketua = document.getElementById('osisKetua').value.trim();
+            const wakil = document.getElementById('osisWakil').value.trim();
+            const kelas = document.getElementById('osisKelas').value.trim();
+            const visi = document.getElementById('osisVisi').value.trim();
+            const photoFile = document.getElementById('osisPhoto').files[0];
 
-  // --- Load awal ---
-  loadData();
-  </script>
-</body>
+            if (!ketua || !wakil || !kelas) {
+                showToast('Nama ketua, wakil, dan kelas harus diisi!', 'error');
+                return;
+            }
+
+            let photo = null;
+
+            try {
+                if (photoFile) {
+                    photo = await fileToBase64(photoFile);
+                }
+            } catch (error) {
+                showToast('Error memproses foto!', 'error');
+                return;
+            }
+
+            const candidate = {
+                id: Date.now(),
+                ketua: ketua,
+                wakil: wakil,
+                class: kelas,
+                visi: visi || 'Tidak ada visi yang diberikan',
+                photo: photo,
+                votes: 0
+            };
+
+            osiscandidates.push(candidate);
+            localStorage.setItem('evoting_osis', JSON.stringify(osiscandidates));
+            
+            document.getElementById('addOsisForm').reset();
+            updateCandidatesList();
+            showToast('Kandidat OSIS berhasil ditambahkan!', 'success');
+        }
+
+        async function addMpkCandidate() {
+            const ketua = document.getElementById('mpkKetua').value.trim();
+            const kelas = document.getElementById('mpkKelas').value.trim();
+            const visi = document.getElementById('mpkVisi').value.trim();
+            const ketuaPhotoFile = document.getElementById('mpkKetuaPhoto').files[0];
+
+            if (!ketua || !kelas) {
+                showToast('Nama ketua dan kelas harus diisi!', 'error');
+                return;
+            }
+
+            let ketuaPhoto = null;
+
+            try {
+                if (ketuaPhotoFile) {
+                    ketuaPhoto = await fileToBase64(ketuaPhotoFile);
+                }
+            } catch (error) {
+                showToast('Error memproses foto!', 'error');
+                return;
+            }
+
+            const candidate = {
+                id: Date.now(),
+                ketua: ketua,
+                class: kelas,
+                visi: visi || 'Tidak ada visi yang diberikan',
+                ketuaPhoto: ketuaPhoto,
+                votes: 0
+            };
+
+            mpkCandidates.push(candidate);
+            localStorage.setItem('evoting_mpk', JSON.stringify(mpkCandidates));
+            
+            document.getElementById('addMpkForm').reset();
+            updateCandidatesList();
+            showToast('Kandidat MPK berhasil ditambahkan!', 'success');
+        }
+
+        function updateCandidatesList() {
+            // Update OSIS list
+            const osisContainer = document.getElementById('osisListAdmin');
+            if (osiscandidates.length === 0) {
+                osisContainer.innerHTML = '<p class="text-gray-500 text-center py-4">Belum ada kandidat OSIS</p>';
+            } else {
+                osisContainer.innerHTML = osiscandidates.map(candidate => `
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="font-medium text-blue-700">${candidate.ketua} & ${candidate.wakil}</div>
+                                <div class="text-sm text-gray-600">${candidate.class}</div>
+                                <div class="text-sm text-gray-500 mt-1">${candidate.visi}</div>
+                            </div>
+                            <button onclick="removeCandidate('osis', ${candidate.id})" class="text-red-600 hover:text-red-800">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Update MPK list
+            const mpkContainer = document.getElementById('mpkListAdmin');
+            if (mpkCandidates.length === 0) {
+                mpkContainer.innerHTML = '<p class="text-gray-500 text-center py-4">Belum ada kandidat MPK</p>';
+            } else {
+                mpkContainer.innerHTML = mpkCandidates.map(candidate => `
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="font-medium text-green-700">${candidate.ketua}</div>
+                                <div class="text-sm text-gray-600">${candidate.class}</div>
+                                <div class="text-sm text-gray-500 mt-1">${candidate.visi}</div>
+                            </div>
+                            <button onclick="removeCandidate('mpk', ${candidate.id})" class="text-red-600 hover:text-red-800">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function removeCandidate(type, id) {
+            if (type === 'osis') {
+                osiscandidates = osiscandidates.filter(c => c.id !== id);
+                localStorage.setItem('evoting_osis', JSON.stringify(osiscandidates));
+            } else {
+                mpkCandidates = mpkCandidates.filter(c => c.id !== id);
+                localStorage.setItem('evoting_mpk', JSON.stringify(mpkCandidates));
+            }
+            updateCandidatesList();
+            showToast('Kandidat berhasil dihapus!', 'success');
+        }
+
+        function clearAllCandidates() {
+            osiscandidates = [];
+            mpkCandidates = [];
+            localStorage.setItem('evoting_osis', JSON.stringify(osiscandidates));
+            localStorage.setItem('evoting_mpk', JSON.stringify(mpkCandidates));
+            updateCandidatesList();
+            showToast('Semua kandidat berhasil dihapus!', 'success');
+        }
+
+        // Voting Process
+        function loginVoter() {
+            const code = document.getElementById('voterCode').value.trim().toUpperCase();
+
+            if (!code) {
+                showToast('Kode pemilih harus diisi!', 'error');
+                return;
+            }
+
+            if (code.length !== 4) {
+                showToast('Kode pemilih harus 4 karakter!', 'error');
+                return;
+            }
+
+            const voter = voters.find(v => v.code === code);
+            
+            if (!voter) {
+                showToast('Kode pemilih tidak valid!', 'error');
+                return;
+            }
+
+            if (voter.hasVoted) {
+                showToast('Kode ini sudah digunakan untuk voting!', 'warning');
+                return;
+            }
+
+            currentVoter = voter;
+            document.getElementById('currentVoterName').textContent = voter.name;
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('votingInterface').classList.remove('hidden');
+            
+            loadVotingOptions();
+            showToast(`Selamat datang ${voter.name}! Silakan pilih kandidat.`, 'success');
+        }
+
+        function loadVotingOptions() {
+            // Load OSIS candidates
+            const osisContainer = document.getElementById('osisVotingList');
+            if (osiscandidates.length === 0) {
+                osisContainer.innerHTML = '<p class="text-gray-500 text-center col-span-full py-8">Belum ada kandidat OSIS tersedia</p>';
+            } else {
+                osisContainer.innerHTML = osiscandidates.map(candidate => `
+                    <div class="candidate-card bg-white border-2 border-gray-200 rounded-xl p-6 cursor-pointer" onclick="selectOsis(${candidate.id})">
+                        <div class="text-center">
+                            <div class="flex justify-center mb-4">
+                                ${candidate.photo ? 
+                                    `<img src="${candidate.photo}" alt="${candidate.ketua} & ${candidate.wakil}" class="w-20 h-20 rounded-full object-cover shadow-lg border-2 border-blue-300">` :
+                                    `<div class="w-20 h-20 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                                        ${candidate.ketua.charAt(0).toUpperCase()}${candidate.wakil.charAt(0).toUpperCase()}
+                                    </div>`
+                                }
+                            </div>
+                            <h4 class="font-semibold text-lg text-blue-700 mb-2">${candidate.ketua} & ${candidate.wakil}</h4>
+                            <p class="text-sm text-gray-600 mb-3">${candidate.class}</p>
+                            <p class="text-sm text-gray-500">${candidate.visi}</p>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Load MPK candidates
+            const mpkContainer = document.getElementById('mpkVotingList');
+            if (mpkCandidates.length === 0) {
+                mpkContainer.innerHTML = '<p class="text-gray-500 text-center col-span-full py-8">Belum ada kandidat MPK tersedia</p>';
+            } else {
+                mpkContainer.innerHTML = mpkCandidates.map(candidate => `
+                    <div class="candidate-card bg-white border-2 border-gray-200 rounded-xl p-6 cursor-pointer" onclick="selectMpk(${candidate.id})">
+                        <div class="text-center">
+                            <div class="flex justify-center mb-4">
+                                ${candidate.ketuaPhoto ? 
+                                    `<img src="${candidate.ketuaPhoto}" alt="${candidate.ketua}" class="w-20 h-20 rounded-full object-cover shadow-lg border-2 border-green-300">` :
+                                    `<div class="w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                                        ${candidate.ketua.charAt(0).toUpperCase()}
+                                    </div>`
+                                }
+                            </div>
+                            <h4 class="font-semibold text-lg text-green-700 mb-2">${candidate.ketua}</h4>
+                            <p class="text-sm text-gray-600 mb-3">${candidate.class}</p>
+                            <p class="text-sm text-gray-500">${candidate.visi}</p>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function selectOsis(id) {
+            selectedOsis = id;
+            
+            // Update UI
+            document.querySelectorAll('#osisVotingList .candidate-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+            
+            updateSubmitButton();
+        }
+
+        function selectMpk(id) {
+            selectedMpk = id;
+            
+            // Update UI
+            document.querySelectorAll('#mpkVotingList .candidate-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+            
+            updateSubmitButton();
+        }
+
+        function updateSubmitButton() {
+            const submitBtn = document.getElementById('submitVoteBtn');
+            const hasOsisSelection = selectedOsis !== null || osiscandidates.length === 0;
+            const hasMpkSelection = selectedMpk !== null || mpkCandidates.length === 0;
+            
+            if (hasOsisSelection && hasMpkSelection) {
+                submitBtn.disabled = false;
+                submitBtn.className = 'bg-green-600 text-white py-3 px-8 rounded-lg font-medium hover:bg-green-700 transition duration-200 cursor-pointer';
+                submitBtn.textContent = 'Submit Suara Saya';
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.className = 'bg-gray-400 text-white py-3 px-8 rounded-lg font-medium cursor-not-allowed';
+                submitBtn.textContent = 'Pilih kandidat terlebih dahulu';
+            }
+        }
+
+        function submitVote() {
+            if (!currentVoter) return;
+            
+            // Show confirmation modal
+            let confirmContent = '<p class="mb-4">Anda akan memilih:</p><ul class="list-disc list-inside space-y-2">';
+            
+            if (selectedOsis) {
+                const osisCandidate = osiscandidates.find(c => c.id === selectedOsis);
+                confirmContent += `<li><strong>OSIS:</strong> ${osisCandidate.ketua} & ${osisCandidate.wakil}</li>`;
+            }
+            
+            if (selectedMpk) {
+                const mpkCandidate = mpkCandidates.find(c => c.id === selectedMpk);
+                confirmContent += `<li><strong>MPK:</strong> ${mpkCandidate.ketua}</li>`;
+            }
+            
+            confirmContent += '</ul><p class="mt-4 text-sm text-gray-600">Pilihan tidak dapat diubah setelah disubmit!</p>';
+            
+            document.getElementById('confirmContent').innerHTML = confirmContent;
+            document.getElementById('confirmModal').style.display = 'block';
+            
+            document.getElementById('confirmVoteBtn').onclick = function() {
+                confirmSubmitVote();
+            };
+        }
+
+        function confirmSubmitVote() {
+            // Record vote
+            const vote = {
+                voterId: currentVoter.id,
+                voterName: currentVoter.name,
+                osisChoice: selectedOsis,
+                mpkChoice: selectedMpk,
+                timestamp: new Date().toISOString()
+            };
+            
+            votes.push(vote);
+            
+            // Mark voter as voted
+            const voterIndex = voters.findIndex(v => v.id === currentVoter.id);
+            voters[voterIndex].hasVoted = true;
+            
+            // Update candidate vote counts
+            if (selectedOsis) {
+                const osisIndex = osiscandidates.findIndex(c => c.id === selectedOsis);
+                osiscandidates[osisIndex].votes++;
+            }
+            
+            if (selectedMpk) {
+                const mpkIndex = mpkCandidates.findIndex(c => c.id === selectedMpk);
+                mpkCandidates[mpkIndex].votes++;
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('evoting_votes', JSON.stringify(votes));
+            localStorage.setItem('evoting_voters', JSON.stringify(voters));
+            localStorage.setItem('evoting_osis', JSON.stringify(osiscandidates));
+            localStorage.setItem('evoting_mpk', JSON.stringify(mpkCandidates));
+            
+            // Show success
+            closeModal();
+            document.getElementById('votingInterface').classList.add('hidden');
+            document.getElementById('voteSuccess').classList.remove('hidden');
+            document.getElementById('voteSuccess').classList.add('vote-animation');
+            
+            updateVoterStatus();
+        }
+
+        function logout() {
+            currentVoter = null;
+            selectedOsis = null;
+            selectedMpk = null;
+            document.getElementById('voterLoginForm').reset();
+            showVoterPanel();
+        }
+
+        // Results
+        function updateResults() {
+            const totalVoters = voters.length;
+            const votedCount = voters.filter(v => v.hasVoted).length;
+            const notVotedCount = totalVoters - votedCount;
+            
+            document.getElementById('totalVoters').textContent = totalVoters;
+            document.getElementById('votedCount').textContent = votedCount;
+            document.getElementById('notVotedCount').textContent = notVotedCount;
+            
+            // OSIS Results
+            const osisContainer = document.getElementById('osisResults');
+            if (osiscandidates.length === 0) {
+                osisContainer.innerHTML = '<p class="text-gray-500 text-center py-8">Belum ada kandidat OSIS</p>';
+            } else {
+                const sortedOsis = [...osiscandidates].sort((a, b) => b.votes - a.votes);
+                const totalOsisVotes = sortedOsis.reduce((sum, c) => sum + c.votes, 0);
+                
+                osisContainer.innerHTML = sortedOsis.map((candidate, index) => {
+                    const percentage = totalOsisVotes > 0 ? (candidate.votes / totalOsisVotes * 100).toFixed(1) : 0;
+                    return `
+                        <div class="mb-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <div>
+                                    <span class="font-medium">${candidate.ketua} & ${candidate.wakil}</span>
+                                    ${index === 0 && candidate.votes > 0 ? '<span class="text-yellow-500 ml-2">👑</span>' : ''}
+                                </div>
+                                <span class="text-sm font-semibold">${candidate.votes} suara (${percentage}%)</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="progress-bar bg-blue-600 h-3 rounded-full transition-all duration-500" style="width: ${percentage}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            // MPK Results
+            const mpkContainer = document.getElementById('mpkResults');
+            if (mpkCandidates.length === 0) {
+                mpkContainer.innerHTML = '<p class="text-gray-500 text-center py-8">Belum ada kandidat MPK</p>';
+            } else {
+                const sortedMpk = [...mpkCandidates].sort((a, b) => b.votes - a.votes);
+                const totalMpkVotes = sortedMpk.reduce((sum, c) => sum + c.votes, 0);
+                
+                mpkContainer.innerHTML = sortedMpk.map((candidate, index) => {
+                    const percentage = totalMpkVotes > 0 ? (candidate.votes / totalMpkVotes * 100).toFixed(1) : 0;
+                    return `
+                        <div class="mb-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <div>
+                                    <span class="font-medium">${candidate.ketua}</span>
+                                    ${index === 0 && candidate.votes > 0 ? '<span class="text-yellow-500 ml-2">👑</span>' : ''}
+                                </div>
+                                <span class="text-sm font-semibold">${candidate.votes} suara (${percentage}%)</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="progress-bar bg-green-600 h-3 rounded-full transition-all duration-500" style="width: ${percentage}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        // Utility Functions
+        function updateVoterStatus() {
+            const totalVoters = voters.length;
+            const votedCount = voters.filter(v => v.hasVoted).length;
+            
+            if (totalVoters === 0) {
+                document.getElementById('voterStatus').textContent = 'Belum Setup';
+                document.getElementById('voterStatus').className = 'font-semibold text-gray-600';
+            } else {
+                document.getElementById('voterStatus').textContent = `${votedCount}/${totalVoters} sudah voting`;
+                document.getElementById('voterStatus').className = 'font-semibold text-blue-600';
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 100);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 3000);
+        }
+
+        function closeModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+        }
+
+        // Export Voter List Function
+        function exportVoterList() {
+            if (voters.length === 0) {
+                showToast('Tidak ada data pemilih untuk diekspor!', 'warning');
+                return;
+            }
+            
+            // Create CSV content for voter list
+            let csvContent = "DATA PEMILIH E-VOTING SEKOLAH\n";
+            csvContent += `Tanggal Export: ${new Date().toLocaleDateString('id-ID')}\n`;
+            csvContent += `Total Pemilih: ${voters.length}\n\n`;
+            
+            csvContent += "DAFTAR LENGKAP PEMILIH\n";
+            csvContent += "No,Nama Lengkap,Kelas,NIS,Kode Pemilih,Status Voting\n";
+            
+            voters.forEach((voter, index) => {
+                csvContent += `${index + 1},"${voter.name}",${voter.class},${voter.nis},${voter.code || 'N/A'},${voter.hasVoted ? 'Sudah Vote' : 'Belum Vote'}\n`;
+            });
+            
+            // Add summary statistics
+            const votedCount = voters.filter(v => v.hasVoted).length;
+            const notVotedCount = voters.length - votedCount;
+            
+            csvContent += "\nRINGKASAN STATUS\n";
+            csvContent += `Total Pemilih,${voters.length}\n`;
+            csvContent += `Sudah Voting,${votedCount}\n`;
+            csvContent += `Belum Voting,${notVotedCount}\n`;
+            csvContent += `Persentase Partisipasi,${voters.length > 0 ? (votedCount / voters.length * 100).toFixed(1) : 0}%\n`;
+            
+            // Download CSV
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `Data_Pemilih_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast('Data pemilih berhasil diekspor ke Excel!', 'success');
+        }
+
+        // Excel Export Functions
+        function exportToExcel() {
+            const totalVoters = voters.length;
+            const votedCount = voters.filter(v => v.hasVoted).length;
+            
+            // Prepare OSIS results
+            const sortedOsis = [...osiscandidates].sort((a, b) => b.votes - a.votes);
+            const totalOsisVotes = sortedOsis.reduce((sum, c) => sum + c.votes, 0);
+            
+            // Prepare MPK results
+            const sortedMpk = [...mpkCandidates].sort((a, b) => b.votes - a.votes);
+            const totalMpkVotes = sortedMpk.reduce((sum, c) => sum + c.votes, 0);
+            
+            // Create CSV content
+            let csvContent = "HASIL PEMILIHAN E-VOTING SEKOLAH\n";
+            csvContent += `Tanggal Export: ${new Date().toLocaleDateString('id-ID')}\n\n`;
+            csvContent += `RINGKASAN VOTING\n`;
+            csvContent += `Total Pemilih,${totalVoters}\n`;
+            csvContent += `Sudah Voting,${votedCount}\n`;
+            csvContent += `Belum Voting,${totalVoters - votedCount}\n\n`;
+            
+            csvContent += "HASIL PEMILIHAN OSIS\n";
+            csvContent += "Ranking,Nama Kandidat,Kelas,Jumlah Suara,Persentase\n";
+            sortedOsis.forEach((candidate, index) => {
+                const percentage = totalOsisVotes > 0 ? (candidate.votes / totalOsisVotes * 100).toFixed(1) : 0;
+                csvContent += `${index + 1},"${candidate.ketua} & ${candidate.wakil}",${candidate.class},${candidate.votes},${percentage}%\n`;
+            });
+            
+            csvContent += "\nHASIL PEMILIHAN MPK\n";
+            csvContent += "Ranking,Nama Kandidat,Kelas,Jumlah Suara,Persentase\n";
+            sortedMpk.forEach((candidate, index) => {
+                const percentage = totalMpkVotes > 0 ? (candidate.votes / totalMpkVotes * 100).toFixed(1) : 0;
+                csvContent += `${index + 1},"${candidate.ketua}",${candidate.class},${candidate.votes},${percentage}%\n`;
+            });
+            
+            // Download CSV
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `Hasil_Voting_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast('File Excel berhasil didownload!', 'success');
+        }
+        
+        function exportDetailedResults() {
+            // Create detailed CSV with individual votes
+            let csvContent = "DETAIL LENGKAP HASIL VOTING\n";
+            csvContent += `Tanggal Export: ${new Date().toLocaleDateString('id-ID')}\n\n`;
+            
+            csvContent += "DAFTAR PEMILIH DAN STATUS\n";
+            csvContent += "No,Nama,Kelas,NIS,Kode Pemilih,Status Voting\n";
+            voters.forEach((voter, index) => {
+                csvContent += `${index + 1},"${voter.name}",${voter.class},${voter.nis},${voter.code},${voter.hasVoted ? 'Sudah Vote' : 'Belum Vote'}\n`;
+            });
+            
+            csvContent += "\nDETAIL PILIHAN SETIAP PEMILIH\n";
+            csvContent += "No,Nama Pemilih,Pilihan OSIS,Pilihan MPK,Waktu Vote\n";
+            votes.forEach((vote, index) => {
+                const osisChoice = vote.osisChoice ? osiscandidates.find(c => c.id === vote.osisChoice) : null;
+                const mpkChoice = vote.mpkChoice ? mpkCandidates.find(c => c.id === vote.mpkChoice) : null;
+                
+                const osisName = osisChoice ? `${osisChoice.ketua} & ${osisChoice.wakil}` : 'Tidak memilih';
+                const mpkName = mpkChoice ? mpkChoice.ketua : 'Tidak memilih';
+                const voteTime = new Date(vote.timestamp).toLocaleString('id-ID');
+                
+                csvContent += `${index + 1},"${vote.voterName}","${osisName}","${mpkName}",${voteTime}\n`;
+            });
+            
+            // Download detailed CSV
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `Detail_Voting_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast('File detail lengkap berhasil didownload!', 'success');
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('confirmModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'991d49e965815d5e',t:'MTc2MTAxMzM2Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
